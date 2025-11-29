@@ -14,14 +14,23 @@ async function post(endpoint: string, data: any) {
       body: JSON.stringify(data),
     });
 
+    // Check for HTML response (common when 404 returns index.html or proxy fails)
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("text/html")) {
+      throw new Error("API not found. Ensure the backend server is running (npm run dev).");
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error(`API Error (${endpoint}):`, error);
+    if (error.message.includes('Failed to fetch')) {
+      throw new Error("Network error. Is the backend server running on port 3001?");
+    }
     throw error;
   }
 }
@@ -109,6 +118,7 @@ export const generateConceptImage = async (term: string): Promise<string | undef
     const result = await post('/image', { term });
     return result.imageData; // Base64 string
   } catch (e) {
+    console.warn("Image generation failed silently:", e);
     return undefined; // Fail gracefully for images
   }
 };

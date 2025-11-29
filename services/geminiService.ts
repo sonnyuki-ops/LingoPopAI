@@ -11,7 +11,8 @@ export const lookupTerm = async (
   sourceLang: Language,
   targetLang: Language
 ): Promise<Omit<DictEntry, 'id' | 'createdAt' | 'imageUrl' | 'term'>> => {
-  
+  if (!apiKey) throw new Error("API Key missing");
+
   const prompt = `
     You are an advanced AI language tutor. 
     The user is a native ${sourceLang} speaker learning ${targetLang}.
@@ -68,14 +69,8 @@ export const lookupTerm = async (
     return JSON.parse(text);
   } catch (error) {
     console.error("lookupTerm error:", error);
-    // Return fallback to prevent app crash
-    return {
-      targetTerm: term,
-      phonetic: "",
-      nativeDefinition: "Could not retrieve definition. Please try again.",
-      examples: [],
-      usageNote: "Error contacting AI service."
-    };
+    // Rethrow to let App.tsx handle the UI error message
+    throw error;
   }
 };
 
@@ -280,7 +275,8 @@ export const generateConceptImage = async (term: string): Promise<string | undef
       Generate an image representing: "${term}".
       
       Rules:
-      1. **Famous People**: If "${term}" is a specific real person (celebrity, artist, historical figure), you MUST generate a **photorealistic portrait** that looks like them. Do not use cartoon styles for real people.
+      1. **Famous People**: If "${term}" is a specific real person (celebrity, artist, historical figure), generate a high-quality **realistic portrait**. 
+         - NOTE: If specific celebrity generation is restricted by safety guidelines, generate a highly realistic portrait of a person who captures the essence, style, and era of "${term}" without violating policy.
       2. **Objects/Places**: If it is a physical object or place, generate a high-quality photorealistic photo.
       3. **Abstract/Grammar**: If it is an abstract concept or grammar point, generate a colorful, minimalist 3D illustration.
       
@@ -304,6 +300,7 @@ export const generateConceptImage = async (term: string): Promise<string | undef
     return undefined;
   } catch (e) {
     console.error("Image generation failed", e);
+    // Return undefined to fail gracefully without crashing the main flow
     return undefined;
   }
 };

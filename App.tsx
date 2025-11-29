@@ -43,7 +43,9 @@ const translations: Record<string, Record<string, string>> = {
     fluencyScore: "Fluency Score",
     corrections: "Corrections",
     backMenu: "Back to Menu",
-    aiTyping: "AI is typing..."
+    aiTyping: "AI is typing...",
+    errorGeneric: "Something went wrong. Please check your connection.",
+    errorExtension: "A browser extension might be blocking the request."
   },
   [Language.Chinese]: {
     welcome: "LingoPop 灵语",
@@ -72,9 +74,10 @@ const translations: Record<string, Record<string, string>> = {
     fluencyScore: "流利度评分",
     corrections: "纠错与建议",
     backMenu: "返回菜单",
-    aiTyping: "AI 正在输入..."
+    aiTyping: "AI 正在输入...",
+    errorGeneric: "出错了，请检查网络连接。",
+    errorExtension: "某个浏览器插件可能拦截了请求。"
   },
-  // Fallback for others (simplified to English for brevity, but in production would map all)
 };
 
 const useText = (lang: Language, key: string): string => {
@@ -136,7 +139,8 @@ const SearchHeader: React.FC<{
   isSearching: boolean;
   nativeLang: Language;
   targetLang: Language;
-}> = ({ onSearch, isSearching, nativeLang, targetLang }) => {
+  error?: string | null;
+}> = ({ onSearch, isSearching, nativeLang, targetLang, error }) => {
   const [input, setInput] = useState('');
   const t = (k: string) => useText(nativeLang, k);
 
@@ -173,6 +177,12 @@ const SearchHeader: React.FC<{
           )}
         </button>
       </form>
+      {error && (
+        <div className="mt-2 bg-red-100 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-xs font-bold animate-fade-in flex items-center gap-2">
+           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+           {error}
+        </div>
+      )}
     </div>
   );
 };
@@ -621,6 +631,7 @@ const App: React.FC = () => {
   const [currentEntry, setCurrentEntry] = useState<DictEntry | null>(null);
   const [savedEntries, setSavedEntries] = useState<DictEntry[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Scenario State
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
@@ -646,6 +657,7 @@ const App: React.FC = () => {
 
   const handleSearch = async (term: string) => {
     setIsSearching(true);
+    setSearchError(null);
     const existing = savedEntries.find(e => e.term.toLowerCase() === term.toLowerCase());
     if (existing) {
       setCurrentEntry(existing);
@@ -674,9 +686,14 @@ const App: React.FC = () => {
 
       setCurrentEntry(newEntry);
       setView('result');
-    } catch (error) {
-      alert("Oops! AI had a hiccup. Try again.");
+    } catch (error: any) {
       console.error(error);
+      // Friendly UI error handling
+      if (error?.message?.includes('permission') || error?.code === 403) {
+        setSearchError(t('errorExtension'));
+      } else {
+        setSearchError(t('errorGeneric'));
+      }
     } finally {
       setIsSearching(false);
     }
@@ -739,7 +756,8 @@ const App: React.FC = () => {
           onSearch={handleSearch} 
           isSearching={isSearching} 
           nativeLang={nativeLang} 
-          targetLang={targetLang} 
+          targetLang={targetLang}
+          error={searchError}
         />
       )}
 
